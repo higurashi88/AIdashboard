@@ -1,0 +1,91 @@
+# プロジェクトと自動実行の初期登録
+#
+# このファイルを projects.toml にコピーして、自分の環境に合わせて編集する。
+#   Copy-Item config\projects.example.toml config\projects.toml
+#
+# projects.toml は .gitignore 済み。ローカル固有の絶対パスを含むため、コミットしない。
+#
+# 反映:
+#   docker compose -f compose.yaml exec api python manage.py seed_initial_data
+#
+# 冪等なので何度実行してもよい。slug / key をキーに更新される。
+# 確認だけしたいときは --dry-run を付ける。
+
+# ---------------------------------------------------------------------------
+# プロジェクト
+# ---------------------------------------------------------------------------
+# slug       必須。MCPツールの引数に使う。登録後は変更しない
+# code       必須。短縮ID（TASK-12 の TASK 部分）。半角英大文字と数字のみ。登録後は変更しない
+# name       必須。画面に出る表示名
+# root_path  作業ディレクトリの絶対パス。get_project(cwd=...) の解決に使う。
+#            アプリがこのパスを読むことはない（表示と照合のみ）
+# summary    一行説明。get_project の冒頭に返る
+# is_active  false にすると一覧から外れる（ペンディング中のPJなど）
+
+[[project]]
+slug = "my-blog"
+code = "BLOG"
+name = "ブログ執筆"
+root_path = 'C:\Users\you\Documents\blog'
+summary = "週2本のペースで記事を書く"
+is_active = true
+sort_order = 10
+color = "#2563EB"
+
+[[project]]
+slug = "my-app"
+code = "APP"
+name = "自作アプリ"
+root_path = 'C:\Users\you\src\my-app'
+summary = "個人開発中のWebアプリ"
+is_active = true
+sort_order = 20
+color = "#059669"
+
+# ---------------------------------------------------------------------------
+# 自動実行
+# ---------------------------------------------------------------------------
+# scripts/dashboard_client.ps1 の Start-DashboardRun -Key に渡す値が key。
+# ここに登録していない key を送っても 404 になり、実行記録は残らない。
+#
+# key                  必須。パイプラインが名乗るID
+# project              必須。上で定義した slug のいずれか
+# name                 画面に出る表示名。空ならタスク名、それも空なら key が使われる
+# scheduled_task_name  Windowsタスクスケジューラのタスク名（参照用）
+# schedule_human       画面に出すスケジュール表記
+# script_path          実行スクリプトのパス（参照用）
+# state                "active" か "paused"
+
+[[automation]]
+key = "blog-weekly-draft"
+project = "my-blog"
+name = "ブログ 下書き生成"
+scheduled_task_name = "Blog_WeeklyDraft_Mon"
+schedule_human = "月 07:00"
+script_path = 'C:\Users\you\Documents\blog\automation\run_draft.ps1'
+state = "active"
+
+[[automation]]
+key = "app-nightly-build"
+project = "my-app"
+name = "自作アプリ 夜間ビルド"
+scheduled_task_name = "MyApp_NightlyBuild"
+schedule_human = "毎日 02:00"
+script_path = 'C:\Users\you\src\my-app\automation\run_build.ps1'
+state = "paused"
+
+# ---------------------------------------------------------------------------
+# リポジトリ（任意）
+# ---------------------------------------------------------------------------
+# ホームの「リポジトリ」欄に状態を出すローカル Git リポジトリ。
+# 状態は scripts/collect_repo_status.ps1 が集めて送る（README「ローカルリポジトリの状態を集める」）。
+#
+# path       必須。リポジトリの絶対パス。登録後に変えると別のリポジトリとして扱われる
+# project    ひもづけるプロジェクトの slug（任意）
+# name       画面に出る名前。省略時はフォルダ名
+# is_active  false にすると一覧から外れる
+# sort_order 並び順
+
+[[repository]]
+path = 'C:\Users\you\src\my-app'
+project = "my-app"

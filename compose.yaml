@@ -1,0 +1,101 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+    env_file:
+      - .env
+    environment:
+      DASHBOARD_CONFIG_DIR: /config
+    volumes:
+      # プロジェクト定義（seed_initial_data が読む）。読み取り専用でマウントする。
+      - ./config:/config:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >-
+      sh -c "python manage.py migrate --noinput
+      && python manage.py collectstatic --noinput
+      && exec uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --workers 3"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/healthz/', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      target: production
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:1.27-alpine
+    environment:
+      DASHBOARD_WEB_API_KEY: ${DASHBOARD_WEB_API_KEY}
+    ports:
+      # ポートを変えるときは .env の DASHBOARD_PORT と、URL 系の値（DASHBOARD_URL など）を揃える。
+      - "127.0.0.1:${DASHBOARD_PORT:-8770}:80"
+    volumes:
+      # nginx 公式entrypointが環境変数を展開し、ブラウザに見せずAPIキーを付与する。
+      - ./proxy/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/api/v1/healthz/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Discord への通知（任意）。.env に COMPOSE_PROFILES=discord を書いたときだけ起動する。
+  # Discord へは bot から外向きに接続するので、ダッシュボードを外部へ公開する必要はない。
+  discord-bot:
+    build:
+      context: ./discord-bot
+    profiles: ["discord"]
+    # .env 全体（DB パスワード等）は渡さず、API へ接続するための値だけを渡す。
+    # トークン・チャンネル・通知の ON/OFF は設定画面で入力し、bot が API から読み直す。
+    environment:
+      DASHBOARD_DISCORD_API_KEY: ${DASHBOARD_DISCORD_API_KEY:-}
+      DASHBOARD_API_URL: http://api:8000/api/v1
+    volumes:
+      - discord_bot_state:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  discord_bot_state:

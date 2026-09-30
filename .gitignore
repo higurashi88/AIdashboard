@@ -1,0 +1,40 @@
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.venv/
+venv/
+.uv-cache/
+.uv-python/
+
+api/staticfiles/
+*.sqlite3
+
+web/node_modules/
+web/dist/
+web/.vite/
+web/src/api/schema.d.ts.tmp
+
+.idea/
+.vscode/
+tmp/
+.DS_Store
+Thumbs.db
+
+# バックアップ（scripts/backup.ps1 の出力）
+backups/
+
+# ローカル固有のプロジェクト定義（絶対パスを含むためコミットしない）
+config/projects.toml
+
+# 自動実行の実行ログ（automation/*/run_pipeline.ps1 の出力）
+automation/*/logs/

@@ -1,0 +1,13 @@
+# 既定はリポジトリ内 LF、チェックアウト時に環境依存の変換をしない。
+# Windows と Linux コンテナの両方で同じファイルを扱うため。
+* text=auto eol=lf
+
+# Windows でしか使わないものは CRLF
+*.ps1  text eol=crlf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# バイナリ
+*.png  binary
+*.jpg  binary
+*.gz   binary
